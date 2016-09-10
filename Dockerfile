@@ -1,6 +1,6 @@
 FROM ubuntu:14.04
 RUN apt-get update
-RUN apt-get install -y postfix postfix-mysql dovecot-common dovecot-pop3d dovecot-imapd openssl dovecot-mysql
+RUN apt-get install -y postfix postfix-mysql dovecot-core dovecot-imapd openssl dovecot-mysql dovecot-sieve dovecot-managesieved
 ADD postfix /etc/postfix
 ADD dovecot /etc/dovecot
 RUN groupadd -g 5000 vmail && \
@@ -21,7 +21,7 @@ RUN postconf -e myhostname=mercure.securem.eu && \
     postconf -F '*/*/chroot = n'
 
 RUN echo "dovecot   unix  -       n       n       -       -       pipe"  >> /etc/postfix/master.cf && \
-    echo '    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -d ${recipient}' >> /etc/postfix/master.cf
+    echo '    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${user}@${nexthop} -a ${recipient}' >> /etc/postfix/master.cf
 
 ADD start.sh /start.sh
 
@@ -37,5 +37,7 @@ EXPOSE 110
 EXPOSE 143
 EXPOSE 995
 EXPOSE 993
+# Manage Sieve
+EXPOSE 2093
 
 CMD sh start.sh
