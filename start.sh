@@ -12,7 +12,9 @@ export HOST_IP=$(/sbin/ip route|awk '/default/ { print $3 }')
 echo "$HOST_IP dockerhost" >> /etc/hosts
 
 # defining mail name
-echo "localhost" > /etc/mailname
+echo $DB_HOST > /etc/mailname
+
+postconf -e myhostname=$DB_HOST
 
 # update config templates
 sed -i "s/{{DB_USER}}/$DB_USER/g" /etc/postfix/mysql-email2email.cf
