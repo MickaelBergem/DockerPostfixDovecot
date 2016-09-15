@@ -1,13 +1,28 @@
 FROM ubuntu:14.04
-RUN apt-get update
-RUN apt-get install -y postfix postfix-mysql dovecot-core dovecot-imapd openssl dovecot-mysql dovecot-sieve dovecot-managesieved
+
+RUN apt-get update && \
+    apt-get install -y \
+        postfix \
+        postfix-mysql \
+        postfix-policyd-spf-python \
+        openssl \
+        dovecot-core \
+        dovecot-imapd \
+        dovecot-mysql \
+        dovecot-sieve \
+        dovecot-managesieved \
+        dovecot-antispam
+
 ADD postfix /etc/postfix
 ADD dovecot /etc/dovecot
+
 RUN groupadd -g 5000 vmail && \
     useradd -g vmail -u 5000 vmail -d /home/vmail -m && \
     chgrp postfix /etc/postfix/mysql-*.cf && \
     chgrp vmail /etc/dovecot/dovecot.conf && \
     chmod g+r /etc/dovecot/dovecot.conf
+
+ADD policyd-spf.conf /etc/postfix-policyd-spf-python/policyd-spf.conf
 
 RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e virtual_gid_maps=static:5000 && \
@@ -16,6 +31,7 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e virtual_alias_maps=mysql:/etc/postfix/mysql-virtual-alias-maps.cf,mysql:/etc/postfix/mysql-email2email.cf && \
     postconf -e virtual_transport=dovecot && \
     postconf -e dovecot_destination_recipient_limit=1 && \
+    # TLS Configuration
     postconf -e smtpd_tls_cert_file=/etc/ssl/certs/postfix-cert.pem && \
     postconf -e smtpd_tls_key_file=/etc/ssl/private/postfix-cert.key && \
     postconf -e smtpd_tls_loglevel=1 && \
@@ -30,6 +46,10 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e smtp_tls_mandatory_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtp_tls_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtp_tls_mandatory_exclude_ciphers=aNULL,MD5,RC4 && \
+    # SPF
+    postconf -e policy-spf_time_limit=3600s && \
+    postconf -e smtpd_relay_restrictions="permit_mynetworks permit_sasl_authenticated defer_unauth_destination check_policy_service unix:private/policy-spf" && \
+
     # specially for docker
     postconf -F '*/*/chroot = n'
 
@@ -40,6 +60,9 @@ RUN echo "submission inet n       -       -       -       -       smtpd"  >> /et
     echo "  -o smtpd_tls_security_level=encrypt"  >> /etc/postfix/master.cf && \
     echo "  -o smtpd_sasl_auth_enable=yes"  >> /etc/postfix/master.cf && \
     echo "  -o smtpd_client_restrictions=permit_sasl_authenticated,reject" >> /etc/postfix/master.cf
+
+RUN echo "policy-spf  unix  -       n       n       -       -       spawn"  >> /etc/postfix/master.cf && \
+    echo "    user=nobody argv=/usr/bin/policyd-spf"  >> /etc/postfix/master.cf
 
 ADD start.sh /start.sh
 
