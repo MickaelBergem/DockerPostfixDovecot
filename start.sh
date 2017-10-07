@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# default 
+# default
 echo "Running Dovecot + Postfix"
 echo "Host: $APP_HOST (should be set)"
 echo "Database: $DB_NAME (should be set)"
@@ -54,7 +54,10 @@ chmod -R +r /run/dovecot
 chmod -R +w /run/dovecot
 chmod -R 777 /home/vmail
 # start logger
-rsyslogd 
+rsyslogd
+
+# start rspamd
+/etc/init.d/rspamd start
 
 # run Postfix and Dovecot
 postfix start

@@ -13,8 +13,17 @@ RUN apt-get update && \
         dovecot-managesieved \
         dovecot-antispam
 
-ADD postfix /etc/postfix
-ADD dovecot /etc/dovecot
+RUN apt-get install -y lsb-release wget && \
+    CODENAME=`lsb_release -c -s` && \
+    wget -O- https://rspamd.com/apt-stable/gpg.key | apt-key add - && \
+    echo "deb http://rspamd.com/apt-stable/ $CODENAME main" > /etc/apt/sources.list.d/rspamd.list && \
+    echo "deb-src http://rspamd.com/apt-stable/ $CODENAME main" >> /etc/apt/sources.list.d/rspamd.list && \
+    apt-get update && \
+    apt-get install --no-install-recommends -y rspamd
+
+COPY postfix /etc/postfix
+COPY rspamd /etc/rspamd
+COPY dovecot /etc/dovecot
 
 RUN groupadd -g 5000 vmail && \
     useradd -g vmail -u 5000 vmail -d /home/vmail -m && \
@@ -22,7 +31,7 @@ RUN groupadd -g 5000 vmail && \
     chgrp vmail /etc/dovecot/dovecot.conf && \
     chmod g+r /etc/dovecot/dovecot.conf
 
-ADD policyd-spf.conf /etc/postfix-policyd-spf-python/policyd-spf.conf
+COPY policyd-spf.conf /etc/postfix-policyd-spf-python/policyd-spf.conf
 
 RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e virtual_gid_maps=static:5000 && \
@@ -50,6 +59,13 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e policy-spf_time_limit=3600s && \
     postconf -e smtpd_relay_restrictions="permit_mynetworks permit_sasl_authenticated defer_unauth_destination check_policy_service unix:private/policy-spf" && \
 
+    # Rspamd
+    postconf -e smtpd_milters=inet:localhost:11332 && \
+    postconf -e milter_protocol=6 && \
+    postconf -e milter_mail_macros="i {mail_addr} {client_addr} {client_name} {auth_authen}" && \
+    # skip mail without checks if something goes wrong
+    postconf -e milter_default_action=accept && \
+
     # specially for docker
     postconf -F '*/*/chroot = n'
 
@@ -64,7 +80,7 @@ RUN echo "submission inet n       -       -       -       -       smtpd"  >> /et
 RUN echo "policy-spf  unix  -       n       n       -       -       spawn"  >> /etc/postfix/master.cf && \
     echo "    user=nobody argv=/usr/bin/policyd-spf"  >> /etc/postfix/master.cf
 
-ADD start.sh /start.sh
+COPY start.sh /start.sh
 
 # default config
 ENV DB_HOST localhost
@@ -81,4 +97,4 @@ EXPOSE 993
 # Manage Sieve
 EXPOSE 2093
 
-CMD sh start.sh
+CMD ["sh", "start.sh"]
