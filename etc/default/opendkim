@@ -1,0 +1,1 @@
+SOCKET="local:/var/run/opendkim/opendkim.sock"

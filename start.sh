@@ -1,11 +1,24 @@
 #!/bin/bash
 
+bold=$(tput bold)
+normal=$(tput sgr0)
+
 # default
-echo "Running Dovecot + Postfix"
-echo "Host: $APP_HOST (should be set)"
-echo "Database: $DB_NAME (should be set)"
+echo "Running Dovecot + Postfix + Rspamd + OpenDKIM"
+echo "Host: ${bold}$APP_HOST${normal} (should be set)"
+echo "Database: ${bold}$DB_NAME${normal} (should be set)"
+echo "Email domain: ${bold}$MAIL_DOMAIN${normal} (should be set)"
 echo "Available environment vars:"
-echo "APP_HOST *required*, DB_NAME *required*, DB_USER, DB_PASSWORD"
+echo "MAIL_DOMAIN *required*, APP_HOST *required*, DB_NAME *required*, DB_USER, DB_PASSWORD"
+
+# Configuring OpenDKIM
+if [ -f /etc/opendkim/keys/mail.txt ]; then
+   echo "Found existing DKIM keys, public key is:"
+else
+    /etc/opendkim/keys/makekeys.sh
+    echo "Generated DKIM keys, public key is:"
+fi
+cat /etc/opendkim/keys/mail.txt
 
 # adding IP of a host to /etc/hosts
 export HOST_IP=$(/sbin/ip route|awk '/default/ { print $3 }')
@@ -58,6 +71,9 @@ rsyslogd
 
 # start rspamd
 /etc/init.d/rspamd start
+
+# start OpenDKIM
+opendkim
 
 # run Postfix and Dovecot
 postfix start

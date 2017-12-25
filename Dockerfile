@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         postfix \
         postfix-mysql \
         postfix-policyd-spf-python \
@@ -11,7 +11,8 @@ RUN apt-get update && \
         dovecot-mysql \
         dovecot-sieve \
         dovecot-managesieved \
-        dovecot-antispam
+        dovecot-antispam \
+        opendkim opendkim-tools
 
 RUN apt-get install -y lsb-release wget && \
     CODENAME=`lsb_release -c -s` && \
@@ -21,9 +22,7 @@ RUN apt-get install -y lsb-release wget && \
     apt-get update && \
     apt-get install --no-install-recommends -y rspamd
 
-COPY postfix /etc/postfix
-COPY rspamd /etc/rspamd
-COPY dovecot /etc/dovecot
+COPY etc /etc/
 
 RUN groupadd -g 5000 vmail && \
     useradd -g vmail -u 5000 vmail -d /home/vmail -m && \
@@ -34,7 +33,6 @@ RUN groupadd -g 5000 vmail && \
 COPY policyd-spf.conf /etc/postfix-policyd-spf-python/policyd-spf.conf
 
 RUN postconf -e virtual_gid_maps=static:5000 && \
-    postconf -e virtual_gid_maps=static:5000 && \
     postconf -e virtual_mailbox_domains=mysql:/etc/postfix/mysql-virtual-mailbox-domains.cf && \
     postconf -e virtual_mailbox_maps=mysql:/etc/postfix/mysql-virtual-mailbox-maps.cf && \
     postconf -e virtual_alias_maps=mysql:/etc/postfix/mysql-virtual-alias-maps.cf,mysql:/etc/postfix/mysql-email2email.cf && \
@@ -54,14 +52,18 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e smtp_tls_loglevel=1 && \
     postconf -e smtp_tls_mandatory_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtp_tls_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
+    postconf -e smtp_tls_mandatory_ciphers=high && \
     postconf -e smtp_tls_mandatory_exclude_ciphers=aNULL,MD5,RC4 && \
+    # Auth
+    postconf -e smtpd_sasl_type=dovecot && \
+    postconf -e smtpd_sasl_path=private/auth && \
     # SPF
     postconf -e policy-spf_time_limit=3600s && \
     postconf -e smtpd_relay_restrictions="permit_mynetworks permit_sasl_authenticated defer_unauth_destination check_policy_service unix:private/policy-spf" && \
 
     # Rspamd
-    postconf -e smtpd_milters=inet:localhost:11332 && \
-    postconf -e milter_protocol=6 && \
+    postconf -e smtpd_milters=inet:127.0.0.1:11332,local:/var/run/opendkim/opendkim.sock && \
+    postconf -e milter_protocol=6,2 && \
     postconf -e milter_mail_macros="i {mail_addr} {client_addr} {client_name} {auth_authen}" && \
     # skip mail without checks if something goes wrong
     postconf -e milter_default_action=accept && \
@@ -81,6 +83,8 @@ RUN echo "policy-spf  unix  -       n       n       -       -       spawn"  >> /
     echo "    user=nobody argv=/usr/bin/policyd-spf"  >> /etc/postfix/master.cf
 
 COPY start.sh /start.sh
+
+# TODO: add VOLUME instructions for at least /etc/opendkim/keys/
 
 # default config
 ENV DB_HOST localhost

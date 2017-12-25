@@ -1,0 +1,1 @@
+mail._domainkey.securem.eu securem.eu:mail:/etc/opendkim/keys/securem.eu/mail.private
