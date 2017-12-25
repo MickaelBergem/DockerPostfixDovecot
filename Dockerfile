@@ -41,12 +41,14 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     # TLS Configuration
     postconf -e smtpd_tls_cert_file=/etc/ssl/certs/postfix-cert.pem && \
     postconf -e smtpd_tls_key_file=/etc/ssl/private/postfix-cert.key && \
+    postconf -e smtpd_tls_ciphers=high && \
     postconf -e smtpd_tls_loglevel=1 && \
     postconf -e smtpd_tls_received_header=yes && \
     postconf -e smtpd_tls_security_level=may && \
     postconf -e smtpd_tls_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtpd_tls_mandatory_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtpd_tls_mandatory_exclude_ciphers=EXPORT,LOW,aNULL,MD5,RC4 && \
+    postconf -e smtpd_tls_exclude_ciphers=EXPORT,LOW,aNULL,MD5,RC4 && \
     postconf -e smtpd_tls_mandatory_ciphers=high && \
     postconf -e smtp_tls_security_level=may && \
     postconf -e smtp_tls_loglevel=1 && \
