@@ -54,6 +54,13 @@ RUN postconf -e virtual_gid_maps=static:5000 && \
     postconf -e smtp_tls_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
     postconf -e smtp_tls_mandatory_ciphers=high && \
     postconf -e smtp_tls_mandatory_exclude_ciphers=aNULL,MD5,RC4 && \
+    postconf -e smtp_tlsproxy_security_level=may && \
+    postconf -e smtp_tlsproxy_loglevel=1 && \
+    postconf -e smtp_tlsproxy_mandatory_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
+    postconf -e smtp_tlsproxy_protocols=!SSLv2,!SSLv3,TLSv1,TLSv1.1,TLSv1.2 && \
+    rostconf -e smtp_tlsproxy_mandatory_ciphers=high && \
+    postconf -e smtp_tlsproxy_mandatory_exclude_ciphers=aNULL,MD5,RC4 && \
+    postconf -e tls_preempt_cipherlist=yes && \
     # Auth
     postconf -e smtpd_sasl_type=dovecot && \
     postconf -e smtpd_sasl_path=private/auth && \
